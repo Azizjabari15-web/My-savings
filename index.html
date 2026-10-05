@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Vault</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root {
+            --bg-color: #0d0e12;
+            --card-bg: #161920;
+            --accent: #10b981;
+            --accent-dim: rgba(16, 185, 129, 0.1);
+            --text: #ffffff;
+            --text-muted: #8a93a6;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text); padding: 20px; padding-top: calc(20px + env(safe-area-inset-top)); -webkit-user-select: none; }
+        .app-container { max-width: 450px; margin: 0 auto; }
+        header { margin-bottom: 24px; text-align: center; }
+        h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .balance-amount { font-size: 36px; font-weight: 700; color: var(--text); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .stat-box { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px; }
+        .stat-val { font-size: 16px; font-weight: 600; margin-top: 2px; }
+        .goal-container { margin-top: 8px; }
+        .goal-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+        .goal-btn { background: none; border: none; color: var(--accent); font-size: 14px; cursor: pointer; text-decoration: underline; }
+        .progress-bar { background: rgba(255,255,255,0.08); height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.3s ease; }
+        .category-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .category-row:last-child { border-bottom: none; }
+        .category-name { font-weight: 500; }
+        .category-amt { font-weight: 600; color: var(--accent); }
+        .controls { display: flex; gap: 12px; margin-bottom: 16px; }
+        button { flex: 1; background: var(--accent); border: none; color: #000; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.1s; -webkit-tap-highlight-color: transparent; }
+        button.btn-out { background: rgba(255,255,255,0.08); color: var(--text); }
+        button:active { opacity: 0.8; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 360px; border-radius: 16px; padding: 20px; }
+        .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+        input, select { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; color: #fff; font-size: 16px; margin-bottom: 14px; outline: none; }
+        .modal-btns { display: flex; gap: 10px; }
+        .history-list { max-height: 200px; overflow-y: auto; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        .history-item:last-child { border-bottom: none; }
+        .tx-details { display: flex; flex-direction: column; }
+        .tx-cat { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+        .tx-amt { font-weight: 600; }
+        .tx-amt.in { color: var(--accent); }
+        .tx-amt.out { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header><h1>MY VAULT</h1></header>
+        <div class="card">
+            <div class="balance-label">Total Balance</div>
+            <div class="balance-amount" id="total-balance">$0.00</div>
+            <div class="stats-grid">
+                <div class="stat-box"><div class="balance-label">Total In</div><div class="stat-val" id="total-in" style="color: var(--accent);">$0.00</div></div>
+                <div class="stat-box"><div class="balance-label">Total Out</div><div class="stat-val" id="total-out" style="color: var(--danger);">$0.00</div></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="goal-header">
+                <span>Goal Progress</span>
+                <button class="goal-btn" onclick="openGoalModal()">Target: <span id="goal-target">$1,000</span></button>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+        <div class="card">
+            <div class="balance-label" style="margin-bottom:8px;">Categories</div>
+            <div class="category-row"><span class="category-name">General Savings</span><span class="category-amt" id="cat-general">$0.00</span></div>
+            <div class="category-row"><span class="category-name">Fun Stuff</span><span class="category-amt" id="cat-fun">$0.00</span></div>
+            <div class="category-row"><span class="category-name">eBay</span><span class="category-amt" id="cat-ebay">$0.00</span></div>
+        </div>
+        <div class="controls">
+            <button onclick="openTxModal('in')">Add Money</button>
+            <button class="btn-out" onclick="openTxModal('out')">Take Money Out</button>
+        </div>
+        <div class="card">
+            <div class="balance-label" style="margin-bottom:12px;">Transaction History</div>
+            <div class="history-list" id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div class="modal" id="tx-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">Add Money</div>
+            <input type="number" id="tx-amount" placeholder="Amount ($)" inputmode="decimal">
+            <select id="tx-category">
+                <option value="general">General Savings</option>
+                <option value="fun">Fun Stuff</option>
+                <option value="ebay">eBay</option>
+            </select>
+            <div class="modal-btns">
+                <button class="btn-out" onclick="closeModal('tx-modal')">Cancel</button>
+                <button onclick="submitTransaction()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Modal -->
+    <div class="modal" id="goal-modal">
+        <div class="modal-content">
+            <div class="modal-title">Set New Goal</div>
+            <input type="number" id="new-goal-amount" placeholder="Target Amount ($)" inputmode="numeric">
+            <div class="modal-btns">
+                <button class="btn-out" onclick="closeModal('goal-modal')">Cancel</button>
+                <button onclick="submitGoal()">Save Goal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = JSON.parse(localStorage.getItem('vault_state')) || {
+            balance: 0, totalIn: 0, totalOut: 0, goal: 1000,
+            cats: { general: 0, fun: 0, ebay: 0 }, history: []
+        };
+        let activeAction = 'in';
+
+        function updateUI() {
+            document.getElementById('total-balance').innerText = formatCurr(state.balance);
+            document.getElementById('total-in').innerText = formatCurr(state.totalIn);
+            document.getElementById('total-out').innerText = formatCurr(state.totalOut);
+            document.getElementById('goal-target').innerText = formatCurr(state.goal);
+            document.getElementById('cat-general').innerText = formatCurr(state.cats.general);
+            document.getElementById('cat-fun').innerText = formatCurr(state.cats.fun);
+            document.getElementById('cat-ebay').innerText = formatCurr(state.cats.ebay);
+            
+            let pct = Math.min((state.balance / state.goal) * 100, 100);
+            document.getElementById('progress-fill').style.width = pct + '%';
+
+            let hList = document.getElementById('history-list');
+            hList.innerHTML = state.history.length === 0 ? '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:10px;">No transactions yet</div>' : '';
+            [...state.history].reverse().forEach(tx => {
+                hList.innerHTML += `<div class="history-item">
+                    <div class="tx-details"><span>${tx.date}</span><span class="tx-cat">${tx.cat}</span></div>
+                    <div class="tx-amt ${tx.type}">${tx.type === 'in' ? '+' : '-'}${formatCurr(tx.amt)}</div>
+                </div>`;
+            });
+            localStorage.setItem('vault_state', JSON.stringify(state));
+        }
+
+        function formatCurr(val) { return '$' + val.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,'); }
+        function openTxModal(type) { activeAction = type; document.getElementById('modal-title').innerText = type === 'in' ? 'Add Money' : 'Take Money Out'; document.getElementById('tx-modal').style.display = 'flex'; document.getElementById('tx-amount').focus(); }
+        function openGoalModal() { document.getElementById('goal-modal').style.display = 'flex'; document.getElementById('new-goal-amount').focus(); }
